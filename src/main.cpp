@@ -67,10 +67,24 @@ main()
 
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          double cte = std::stod(j[1]["cte"].get<string>());
-          double speed = std::stod(j[1]["speed"].get<string>());
-          double angle = std::stod(j[1]["steering_angle"].get<string>());
-          double steer_value;
+          const json& input_data = j[1];
+
+          double cte = 0.0;
+          if (input_data.count("cte")) {
+            cte = std::stod(j[1]["cte"].get<string>());
+          }
+
+          double speed = 0.0;
+          if (input_data.count("speed")) {
+            speed = std::stod(j[1]["speed"].get<string>());
+          }
+
+          double angle = 0.0;
+          if (input_data.count("angle")) {
+            angle = std::stod(j[1]["steering_angle"].get<string>());
+          }
+
+          double steer_value = 0.0;
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
