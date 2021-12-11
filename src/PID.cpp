@@ -24,13 +24,10 @@ sign(T x)
 void
 PID::Init(double Kp, double Ki, double Kd)
 {
-  _Kp = Kp;
-  _Ki = Ki;
-  _Kd = Kd;
-  _p_error = 0.0;
-  _i_error = 0.0;
-  _d_error = 0.0;
-  _prev_error = std::numeric_limits<double>::nan();
+  _params = { Kp, Ki, Kd };
+  _dparams = { 1.0, 1.0, 1.0 };
+  _errors = { 0.0, 0.0, 0.0 };
+  _prev_error = std::numeric_limits<double>::quiet_NaN();
 }
 
 void
@@ -40,21 +37,21 @@ PID::UpdateError(double error)
     _prev_error = error;
   }
 
-  _p_error = error;
-  _i_error += error;
-  _d_error = error - _prev_error;
+  _errors[0] = error;
+  _errors[1] += error;
+  _errors[2] = error - _prev_error;
 
   _prev_error = error;
-
-  /**
-   * TODO: Update PID errors based on cte.
-   */
 }
 
 double
 PID::TotalError() const
 {
-  return _Kp * _p_error + _Ki * _i_error + _Kd * _d_error;
+  double total_error = 0.0;
+  for (size_t i = 0; i < _params.size(); ++i) {
+    total_error += _params[i] * _errors[i];
+  }
+  return total_error;
 }
 
 bool
