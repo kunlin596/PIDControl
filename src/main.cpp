@@ -48,7 +48,7 @@ main()
 {
   uWS::Hub h;
 
-  PID pid;
+  PID pid(-1.0, 1.0);
   /**
    * TODO: Initialize the pid variable.
    */
@@ -68,7 +68,7 @@ main()
         if (event == "telemetry") {
           // j[1] is the data JSON object
           const json& input_data = j[1];
-          std::cout << input_data.dump(2) << std::endl;
+          // std::cout << input_data.dump(2) << std::endl;
 
           double cte = 0.0;
           if (input_data.count("cte")) {
@@ -87,7 +87,6 @@ main()
 
           pid.UpdateError(cte);
           double total_error = pid.TotalError();
-          std::cout << angle << std::endl;
 
           double steer_value = angle - total_error;
           /**

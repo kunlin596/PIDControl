@@ -1,5 +1,6 @@
 #include "PID.h"
 #include <cmath>
+#include <iostream>
 
 namespace {
 
@@ -38,7 +39,12 @@ PID::UpdateError(double error)
   }
 
   _errors[0] = error;
-  _errors[1] += error;
+  if (!_NeedToClamp(error)) {
+    _errors[1] += error;
+  } else {
+    std::cout << "integrator is shutdown.\n";
+  }
+
   _errors[2] = error - _prev_error;
 
   _prev_error = error;

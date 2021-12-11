@@ -14,6 +14,10 @@ public:
     , _min(min)
     , _max(max)
   {}
+  PID(double min, double max)
+    : _min(min)
+    , _max(max)
+  {}
 
   virtual ~PID() {}
 
@@ -46,7 +50,6 @@ private:
   void _Optimize();
 
   std::array<bool, 6> flags;
-
 };
 
 #endif // PID_H
