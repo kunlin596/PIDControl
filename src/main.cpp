@@ -68,6 +68,7 @@ main()
         if (event == "telemetry") {
           // j[1] is the data JSON object
           const json& input_data = j[1];
+          std::cout << input_data.dump(2) << std::endl;
 
           double cte = 0.0;
           if (input_data.count("cte")) {
