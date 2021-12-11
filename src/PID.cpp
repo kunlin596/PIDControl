@@ -4,31 +4,30 @@
  * TODO: Complete the PID class. You may add any additional desired functions.
  */
 
-PID::PID() {}
-
-PID::~PID() {}
-
 void
-PID::Init(double Kp_, double Ki_, double Kd_)
+PID::Init(double Kp, double Ki, double Kd)
 {
-  /**
-   * TODO: Initialize PID coefficients (and errors, if needed)
-   */
+  _Kp = Kp;
+  _Ki = Ki;
+  _Kd = Kd;
+  _p_error = 0.0;
+  _i_error = 0.0;
+  _d_error = 0.0;
 }
 
 void
 PID::UpdateError(double cte)
 {
+  _d_error = cte - _p_error;
+  _i_error += cte;
+  _p_error = cte;
   /**
    * TODO: Update PID errors based on cte.
    */
 }
 
 double
-PID::TotalError()
+PID::TotalError() const
 {
-  /**
-   * TODO: Calculate and return the total error
-   */
-  return 0.0; // TODO: Add your total error calc here!
+  return _Kp * _p_error + _Ki * _i_error + _Kd * _d_error;
 }

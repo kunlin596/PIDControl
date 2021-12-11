@@ -4,21 +4,20 @@
 class PID
 {
 public:
-  /**
-   * Constructor
-   */
-  PID();
+  PID() {}
+  PID(double Kp, double Ki, double Kd)
+    : _Kp(Kp)
+    , _Ki(Ki)
+    , _Kd(Kd)
+  {}
 
-  /**
-   * Destructor.
-   */
-  virtual ~PID();
+  virtual ~PID() {}
 
   /**
    * Initialize PID.
-   * @param (Kp_, Ki_, Kd_) The initial PID coefficients
+   * @param (Kp, Ki, Kd) The initial PID coefficients
    */
-  void Init(double Kp_, double Ki_, double Kd_);
+  void Init(double Kp, double Ki, double Kd);
 
   /**
    * Update the PID error variables given cross track error.
@@ -30,22 +29,22 @@ public:
    * Calculate the total PID error.
    * @output The total PID error
    */
-  double TotalError();
+  double TotalError() const;
 
 private:
   /**
    * PID Errors
    */
-  double p_error;
-  double i_error;
-  double d_error;
+  double _p_error = 0.0;
+  double _i_error = 0.0;
+  double _d_error = 0.0;
 
   /**
    * PID Coefficients
    */
-  double Kp;
-  double Ki;
-  double Kd;
+  double _Kp = 0.0;
+  double _Ki = 0.0;
+  double _Kd = 0.0;
 };
 
 #endif // PID_H

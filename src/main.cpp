@@ -71,20 +71,24 @@ main()
 
           double cte = 0.0;
           if (input_data.count("cte")) {
-            cte = std::stod(j[1]["cte"].get<string>());
+            cte = std::stod(input_data["cte"].get<string>());
           }
 
           double speed = 0.0;
           if (input_data.count("speed")) {
-            speed = std::stod(j[1]["speed"].get<string>());
+            speed = std::stod(input_data["speed"].get<string>());
           }
 
           double angle = 0.0;
           if (input_data.count("angle")) {
-            angle = std::stod(j[1]["steering_angle"].get<string>());
+            angle = deg2rad(std::stod(input_data["steering_angle"].get<string>()));
           }
 
-          double steer_value = 0.0;
+          pid.UpdateError(cte);
+          double total_error = pid.TotalError();
+          std::cout << angle << std::endl;
+
+          double steer_value = angle - total_error;
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
@@ -96,6 +100,7 @@ main()
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 
           json msgJson;
+          msgJson["speed"] = speed;
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = 0.3;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
