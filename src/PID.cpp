@@ -1,4 +1,5 @@
 #include "PID.h"
+#include <array>
 #include <cmath>
 #include <iostream>
 
@@ -21,6 +22,8 @@ sign(T x)
 /**
  * TODO: Complete the PID class. You may add any additional desired functions.
  */
+
+namespace controller {
 
 void
 PID::Init(double Kp, double Ki, double Kd)
@@ -83,3 +86,5 @@ PID::_TryClamp(double output, double min_delta, double max_delta) const
   }
   return output;
 }
+
+} // end of controller

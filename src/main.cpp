@@ -1,5 +1,8 @@
 #include "PID.h"
 #include "json.hpp"
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <iostream>
 #include <math.h>
 #include <string>
@@ -43,17 +46,92 @@ hasData(string s)
   return "";
 }
 
+class System
+{
+public:
+  std::string SpinOnce(const json& j)
+  {
+    // j[1] is the data JSON object
+    const json& input_data = j[1];
+
+    double cte = 0.0;
+    if (input_data.count("cte")) {
+      cte = std::stod(input_data["cte"].get<string>());
+    }
+
+    if (std::abs(cte) > 4.0) {
+      return "42[\"reset\",{}]";
+    }
+
+    double speed = 0.0;
+    if (input_data.count("speed")) {
+      speed = std::stod(input_data["speed"].get<string>());
+    }
+
+    double angle = 0.0;
+    if (input_data.count("angle")) {
+      angle = deg2rad(std::stod(input_data["steering_angle"].get<string>()));
+    }
+
+    steering_param_optimizer.Collect(cte);
+    if (steering_param_optimizer.NeedOptimization()) {
+      std::cout << "Steering optimizer activated." << std::endl;
+      steering_pid.Init(steering_param_optimizer.Optimize(steering_pid.GetParameters()));
+    }
+
+    steering_pid.UpdateError(cte);
+    double steer_value = angle - steering_pid.TotalError();
+
+    speed_param_optimizer.Collect(cte);
+    if (speed_param_optimizer.NeedOptimization()) {
+      std::cout << "Speed optimizer activated." << std::endl;
+      speed_pid.Init(speed_param_optimizer.Optimize(speed_pid.GetParameters()));
+    }
+
+    speed_pid.UpdateError(cte);
+    double speed_value = speed - speed_pid.TotalError();
+
+    /**
+     * TODO: Calculate steering value here, remember the steering value is
+     *   [-1, 1].
+     * NOTE: Feel free to play around with the throttle and speed.
+     *   Maybe use another PID controller to control the speed!
+     */
+
+    // DEBUG
+    std::cout << fmt::format("CTE: {:7.3f}, steering value: {:7.3f}, parameters: {}, speed: {:7.3f}, parameters={}",
+                             cte,
+                             steer_value,
+                             steering_pid.GetParameters(),
+                             speed_value,
+                             speed_pid.GetParameters())
+              << std::endl;
+
+    json msgJson;
+    // msgJson["speed"] = speed_value;
+    msgJson["steering_angle"] = speed_pid.TotalError();
+    msgJson["throttle"] = 0.3;
+
+    return fmt::format("42[\"steer\",{}]", msgJson.dump());
+  }
+
+private:
+  controller::PID steering_pid{ 0.225, 0.0004, 4.0, -1.0, 1.0 };
+  controller::CoordinateAscentOptimizer<3> steering_param_optimizer;
+
+  controller::PID speed_pid{ 1.0, 1.0, 1.0, 0.0, 20.0 };
+  controller::CoordinateAscentOptimizer<3> speed_param_optimizer;
+};
+
 int
 main()
 {
   uWS::Hub h;
+  using namespace controller;
 
-  PID pid(-1.0, 1.0);
-  /**
-   * TODO: Initialize the pid variable.
-   */
+  System system;
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char* data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&system](uWS::WebSocket<uWS::SERVER> ws, char* data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -66,46 +144,9 @@ main()
         string event = j[0].get<string>();
 
         if (event == "telemetry") {
-          // j[1] is the data JSON object
-          const json& input_data = j[1];
-          // std::cout << input_data.dump(2) << std::endl;
-
-          double cte = 0.0;
-          if (input_data.count("cte")) {
-            cte = std::stod(input_data["cte"].get<string>());
-          }
-
-          double speed = 0.0;
-          if (input_data.count("speed")) {
-            speed = std::stod(input_data["speed"].get<string>());
-          }
-
-          double angle = 0.0;
-          if (input_data.count("angle")) {
-            angle = deg2rad(std::stod(input_data["steering_angle"].get<string>()));
-          }
-
-          pid.UpdateError(cte);
-          double total_error = pid.TotalError();
-
-          double steer_value = angle - total_error;
-          /**
-           * TODO: Calculate steering value here, remember the steering value is
-           *   [-1, 1].
-           * NOTE: Feel free to play around with the throttle and speed.
-           *   Maybe use another PID controller to control the speed!
-           */
-
-          // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
-
-          json msgJson;
-          msgJson["speed"] = speed;
-          msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
-          auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          std::string msg = system.SpinOnce(j);
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
         } // end "telemetry" if
       } else {
         // Manual driving
