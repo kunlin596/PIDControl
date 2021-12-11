@@ -13,16 +13,19 @@ using nlohmann::json;
 using std::string;
 
 // For converting back and forth between radians and degrees.
+namespace {
 constexpr double
 pi()
 {
   return M_PI;
 }
+
 double
 deg2rad(double x)
 {
   return x * pi() / 180;
 }
+
 double
 rad2deg(double x)
 {
@@ -44,6 +47,8 @@ hasData(string s)
     return s.substr(b1, b2 - b1 + 1);
   }
   return "";
+}
+
 }
 
 class System
