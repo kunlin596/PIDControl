@@ -29,7 +29,6 @@ void
 PID::Init(double Kp, double Ki, double Kd)
 {
   _params = { Kp, Ki, Kd };
-  _dparams = { 1.0, 1.0, 1.0 };
   _errors = { 0.0, 0.0, 0.0 };
   _prev_error = std::numeric_limits<double>::quiet_NaN();
 }

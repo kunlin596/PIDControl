@@ -155,13 +155,21 @@ private:
   State _state = State::kInitialized; ///< Current optimizer state, this state controls what to try next
 };
 
+/**
+ * @brief      Controller mode to toggling different components in the controleller
+ */
 enum ControllerMode : uint8_t
 {
-  kPMode = 0b0,
-  kIMode = 0b10,
-  kDMode = 0b100,
+  kPMode = 0x01,
+  kIMode = 0x02,
+  kDMode = 0x04,
+  kPDMode = 0x05,
+  kPIDMode = 0x07
 };
 
+/**
+ * @brief      This class describes a PID controller.
+ */
 class PID
 {
 public:
@@ -185,32 +193,49 @@ public:
 
   const std::array<double, 3>& GetParameters() const { return _params; }
 
+  void SetMode(uint8_t mode) { _mode = mode; }
+
+  /**
+   * @brief      Update current error
+   *
+   * @param[in]  error  The error
+   */
   void UpdateError(double error);
 
+  /**
+   * @brief      Compute total error for outputting controller signals
+   *
+   * @return     total error
+   */
   double TotalError() const;
 
 private:
-  uint8_t _mode = ControllerMode::kPMode | ControllerMode::kIMode | ControllerMode::kDMode;
-  std::array<double, 3> _errors = { 0.0, 0.0, 0.0 };
-  std::array<double, 3> _params = { 0.225, 0.0004, 4.0 };
-  std::array<double, 3> _dparams = { 1.0, 1.0, 1.0 };
-
-  double _prev_error = std::numeric_limits<double>::quiet_NaN();
+  uint8_t _mode = ControllerMode::kPIDMode;                      ///< Control mode
+  std::array<double, 3> _errors = { 0.0, 0.0, 0.0 };             ///< Errors for PID components
+  std::array<double, 3> _params = { 0.225, 0.0004, 4.0 };        ///< Parameters for PID components
+  double _prev_error = std::numeric_limits<double>::quiet_NaN(); ///< Cached previous error for D component
+  double _min = std::numeric_limits<double>::min();              ///< The minimal value of output signal
+  double _max = std::numeric_limits<double>::max();              ///< The maximum value of output signal
 
   /**
-   * PID Coefficients
+   * @brief      Try to clamp the output signal
+   *
+   * @param[in]  output     The output
+   * @param[in]  min_delta  The minimum delta
+   * @param[in]  max_delta  The maximum delta
+   *
+   * @return     clamped output signal
    */
-  double _min = std::numeric_limits<double>::min();
-  double _max = std::numeric_limits<double>::max();
-
   double _TryClamp(double output, double min_delta, double max_delta) const;
 
-  bool _NeedToClamp(double output) const;
-
   /**
-   * @brief      Adjust and optimize the parameters using twiddle (officially, coordinate ascent or hill climbing)
+   * @brief      Check if the output signal is saturated
+   *
+   * @param[in]  output  The output
+   *
+   * @return     need to clamp the output signal or not
    */
-  void _Optimize();
+  bool _NeedToClamp(double output) const;
 };
 } // end of controller
 
