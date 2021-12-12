@@ -42,6 +42,7 @@ PID::UpdateError(double error)
   }
 
   _errors[0] = error;
+
   if (!_NeedToClamp(error)) {
     _errors[1] += error;
   } else {
@@ -49,7 +50,6 @@ PID::UpdateError(double error)
   }
 
   _errors[2] = error - _prev_error;
-
   _prev_error = error;
 }
 
@@ -57,8 +57,14 @@ double
 PID::TotalError() const
 {
   double total_error = 0.0;
-  for (size_t i = 0; i < _params.size(); ++i) {
-    total_error += _params[i] * _errors[i];
+  if (_mode & ControllerMode::kPMode) {
+    total_error += _params[0] * _errors[0];
+  }
+  if (_mode & ControllerMode::kIMode) {
+    total_error += _params[1] * _errors[1];
+  }
+  if (_mode & ControllerMode::kDMode) {
+    total_error += _params[2] * _errors[2];
   }
   return total_error;
 }

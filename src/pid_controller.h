@@ -26,9 +26,9 @@ public:
    */
   enum class State : uint32_t
   {
-    Initialized = 0,
-    Increased = 1,
-    Decreased = 2
+    kInitialized = 0,
+    kIncreased = 1,
+    kDecreased = 2
   };
 
   CoordinateAscentOptimizer(double increase_scale = 1.1, double decrease_scale = 0.9)
@@ -60,14 +60,14 @@ public:
     std::array<double, NumParams> optimized = parameters;
     double latest_error = _errors[_errors.size() - 1];
     switch (_state) {
-      case State::Initialized:
+      case State::kInitialized:
         // Increase the parameters in the given dimension
         _min_error = latest_error;
         optimized[_current_dim] += _param_deltas[_current_dim];
-        _state = State::Increased;
+        _state = State::kIncreased;
         break;
-      case State::Increased:
-        // Increased parameters in initialization step.
+      case State::kIncreased:
+        // kIncreased parameters in initialization step.
         // Check the error of increased parameters to decide what to do next
         if (latest_error < _min_error) {
           // Update latest error
@@ -79,7 +79,7 @@ public:
           // The current parameter increment succeeded, increase the next dim
           _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Keep increase state for the next parameter
-          _state = State::Increased;
+          _state = State::kIncreased;
         } else {
           // The previous increment of parameter failed, move to the opposite direction
           _ModifyParam(optimized[_current_dim], -2 * _param_deltas[_current_dim]);
@@ -90,11 +90,11 @@ public:
             // error, check next sim.
             _SetNextDim();
           }
-          _state = State::Decreased;
+          _state = State::kDecreased;
         }
         break;
-      case State::Decreased:
-        // Decreased parameters in the increased step, because it the error check failed.
+      case State::kDecreased:
+        // kDecreased parameters in the increased step, because it the error check failed.
         // Check the error of decreased parameters to decide what to do next,
         if (latest_error < _min_error) {
           // Update latest error
@@ -106,7 +106,7 @@ public:
           // The current parameter increment succeeded, increase the next dim
           _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Keep increase state for the next parameter.
-          _state = State::Increased;
+          _state = State::kIncreased;
         } else {
           // Decrement of the current parameter doesn't work, restore the original parameter value.
           _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
@@ -117,7 +117,7 @@ public:
           // The current parameter increment succeeded, increase the next dim.
           _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Keep increase state for the next parameter.
-          _state = State::Increased;
+          _state = State::kIncreased;
         }
         break;
     }
@@ -152,7 +152,14 @@ private:
   double _min_error = std::numeric_limits<double>::infinity(); ///< Current minimal error
   double _increase_scale;                                      ///< Increase scale when adding delta succeeded
   double _decrease_scale;                                      ///< Decrease scale when adding delta failed
-  State _state = State::Initialized; ///< Current optimizer state, this state controls what to try next
+  State _state = State::kInitialized; ///< Current optimizer state, this state controls what to try next
+};
+
+enum ControllerMode : uint8_t
+{
+  kPMode = 0b0,
+  kIMode = 0b10,
+  kDMode = 0b100,
 };
 
 class PID
@@ -183,6 +190,7 @@ public:
   double TotalError() const;
 
 private:
+  uint8_t _mode = ControllerMode::kPMode | ControllerMode::kIMode | ControllerMode::kDMode;
   std::array<double, 3> _errors = { 0.0, 0.0, 0.0 };
   std::array<double, 3> _params = { 0.225, 0.0004, 4.0 };
   std::array<double, 3> _dparams = { 1.0, 1.0, 1.0 };
