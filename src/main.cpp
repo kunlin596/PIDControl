@@ -78,7 +78,7 @@ public:
                                                steering_pid.GetParameters()[1] * delta_scale,
                                                steering_pid.GetParameters()[2] * delta_scale } };
 
-    speed_pid = controller::PID{ 2.25, 0.0001, 1.1, 0.0, 1.0 };
+    speed_pid = controller::PID{ 2.25, 0.0001, 1.1, 0.2, 1.0 };
     speed_param_optimizer = controller::CoordinateAscentOptimizer{ { speed_pid.GetParameters()[0] * delta_scale,
                                                                      speed_pid.GetParameters()[1] * delta_scale,
                                                                      speed_pid.GetParameters()[2] * delta_scale } };
@@ -133,7 +133,7 @@ public:
     }
 
     speed_pid.UpdateError(throttle_error);
-    double throttle_value = std::max(speed_pid.TotalError() / (1.0 + std::abs(angle) * 10.0), 0.1);
+    double throttle_value = std::max(speed_pid.TotalError() / (1.0 + std::abs(angle) * 10.0), 0.2);
 
     /**
      * TODO: Calculate steering value here, remember the steering value is
