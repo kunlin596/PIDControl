@@ -1,6 +1,8 @@
 #include "pid_controller.h"
 #include <array>
 #include <cmath>
+#include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <iostream>
 
 namespace {
@@ -24,6 +26,72 @@ sign(T x)
  */
 
 namespace controller {
+
+Parameters
+CoordinateAscentOptimizer::Optimize(const Parameters& parameters)
+{
+  ++_counter;
+  if ((_counter % MAX_RECORDS) != 0) {
+    return parameters;
+  }
+
+  Parameters optimized = parameters;
+  switch (_state) {
+    case State::kInitialized:
+      // Increase the first parameter, bootstrapping the optimizer.
+      _min_error = _total_error;
+      _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
+      _state = State::kIncreased;
+      break;
+    case State::kIncreased:
+      // Increase the parameters in the given dimension
+      if (_total_error < _min_error) {
+        _min_error = _total_error;
+        _ScaleDelta(_param_deltas[_current_dim], _increase_scale);
+
+        // Current parameters succeeded, increase the next parameter
+        _SetNextParam();
+        _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
+        _state = State::kIncreased; // Explicitly keeping the state
+      } else {
+        // Modification not working, cancel previous addition and move to the opposite direction,
+        // stay with the same parameter
+        _ModifyParam(optimized[_current_dim], -2.0 * _param_deltas[_current_dim]);
+        if (optimized[_current_dim] < 0.0) {
+          optimized[_current_dim] = 0.0;
+          _SetNextParam();
+        } else {
+          _state = State::kDecreased;
+        }
+      }
+      break;
+    case State::kDecreased:
+      // Decrease the parameters in the given dimension
+      if (_total_error < _min_error) {
+        _min_error = _total_error;
+        _ScaleDelta(_param_deltas[_current_dim], _increase_scale);
+
+        // Current parameters succeeded, increase the next parameter
+        _SetNextParam();
+        _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
+        _state = State::kIncreased;
+      } else {
+        // Modification not working, cancel previous subtraction and move to the opposite direction,
+        // and move to next parameter
+        _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
+        _ScaleDelta(_param_deltas[_current_dim], _decrease_scale);
+
+        // Increase next parameter
+        _SetNextParam();
+        _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
+        _state = State::kIncreased;
+      }
+      break;
+  }
+  // std::cout << fmt::format("optimized, counter: {:d}, min error: {:.3f}", _counter, _min_error) << std::endl;
+  ResetCounter();
+  return optimized;
+}
 
 void
 PID::Init(double Kp, double Ki, double Kd)
@@ -65,7 +133,7 @@ PID::TotalError() const
   if (_mode & ControllerMode::kDMode) {
     total_error += _params[2] * _errors[2];
   }
-  return total_error;
+  return _TryClamp(total_error, _min * 0.01, _max * 0.01);
 }
 
 bool

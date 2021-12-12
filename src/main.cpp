@@ -1,5 +1,6 @@
 #include "json.hpp"
 #include "pid_controller.h"
+#include <cmath>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
@@ -14,13 +15,25 @@ using std::string;
 
 // For converting back and forth between radians and degrees.
 namespace {
+
+template<typename T>
+double
+sign(T x)
+{
+  if (static_cast<double>(x) > 1e-6) {
+    return 1.0;
+  } else if (static_cast<double>(x) < -1e-6) {
+    return -1.0;
+  }
+  return 0.0;
+}
 constexpr double
 pi()
 {
   return M_PI;
 }
 
-double
+constexpr double
 deg2rad(double x)
 {
   return x * pi() / 180;
@@ -54,6 +67,23 @@ hasData(string s)
 class System
 {
 public:
+  System() { Reset(); }
+
+  void Reset()
+  {
+    static constexpr double delta_scale = 0.05;
+    steering_pid = controller::PID{ 0.225, 0.0004, 4.0, -1.0, 1.0 };
+    steering_param_optimizer =
+      controller::CoordinateAscentOptimizer{ { steering_pid.GetParameters()[0] * delta_scale,
+                                               steering_pid.GetParameters()[1] * delta_scale,
+                                               steering_pid.GetParameters()[2] * delta_scale } };
+
+    speed_pid = controller::PID{ 2.25, 0.0001, 1.1, 0.0, 1.0 };
+    speed_param_optimizer = controller::CoordinateAscentOptimizer{ { speed_pid.GetParameters()[0] * delta_scale,
+                                                                     speed_pid.GetParameters()[1] * delta_scale,
+                                                                     speed_pid.GetParameters()[2] * delta_scale } };
+  }
+
   std::string SpinOnce(const json& j)
   {
     // j[1] is the data JSON object
@@ -65,6 +95,7 @@ public:
     }
 
     if (std::abs(cte) > 4.0) {
+      Reset();
       return "42[\"reset\",{}]";
     }
 
@@ -74,27 +105,35 @@ public:
     }
 
     double angle = 0.0;
-    if (input_data.count("angle")) {
+    if (input_data.count("steering_angle")) {
       angle = deg2rad(std::stod(input_data["steering_angle"].get<string>()));
     }
 
-    steering_param_optimizer.Collect(cte);
+    double speed_error = std::max((MAX_SPEED - speed) / MAX_SPEED, 0.0);
+    double cte_weight = 10.0;
+    double speed_weight = 1.0;
+
+    // Update steering PID controller
+    double steering_error = cte;
+    steering_param_optimizer.Collect(steering_error);
     if (steering_param_optimizer.NeedOptimization()) {
       std::cout << "Steering optimizer activated." << std::endl;
       steering_pid.Init(steering_param_optimizer.Optimize(steering_pid.GetParameters()));
     }
 
-    steering_pid.UpdateError(cte);
-    double steer_value = angle - steering_pid.TotalError();
+    steering_pid.UpdateError(steering_error);
+    double steer_value = (angle - steering_pid.TotalError()) / (1.0 + speed / MAX_SPEED);
 
-    speed_param_optimizer.Collect(cte);
+    // Update speed PID controller
+    double throttle_error = cte_weight * cte + speed_weight * speed_error;
+    speed_param_optimizer.Collect(throttle_error);
     if (speed_param_optimizer.NeedOptimization()) {
       std::cout << "Speed optimizer activated." << std::endl;
       speed_pid.Init(speed_param_optimizer.Optimize(speed_pid.GetParameters()));
     }
 
-    speed_pid.UpdateError(cte);
-    double speed_value = speed - speed_pid.TotalError();
+    speed_pid.UpdateError(throttle_error);
+    double throttle_value = std::max(speed_pid.TotalError() / (1.0 + std::abs(angle) * 10.0), 0.1);
 
     /**
      * TODO: Calculate steering value here, remember the steering value is
@@ -103,19 +142,26 @@ public:
      *   Maybe use another PID controller to control the speed!
      */
 
-    // DEBUG
-    std::cout << fmt::format("CTE: {:7.3f}, steering value: {:7.3f}, parameters: {}, speed: {:7.3f}, parameters={}",
-                             cte,
+    std::cout << fmt::format("cte: {:7.3f}, speed: {:7.3f}, angle: {:7.3f}", cte, speed, angle) << std::endl;
+
+    std::cout << fmt::format(" - {:>15s}: {:7.3f}, min error: {:10.6f}, total error {:10.6f}, parameters: {}",
+                             "steer value",
                              steer_value,
-                             steering_pid.GetParameters(),
-                             speed_value,
+                             steering_param_optimizer.GetMinError(),
+                             steering_param_optimizer.GetTotalError(),
+                             steering_pid.GetParameters())
+              << std::endl;
+    std::cout << fmt::format(" - {:>15s}: {:7.3f}, min error: {:10.6f}, total error {:10.6f}, parameters: {}",
+                             "throttle value",
+                             throttle_value,
+                             speed_param_optimizer.GetMinError(),
+                             speed_param_optimizer.GetTotalError(),
                              speed_pid.GetParameters())
               << std::endl;
 
     json msgJson;
-    // msgJson["speed"] = speed_value;
-    msgJson["steering_angle"] = speed_pid.TotalError();
-    msgJson["throttle"] = 0.3;
+    msgJson["steering_angle"] = steer_value;
+    msgJson["throttle"] = throttle_value;
 
     return fmt::format("42[\"steer\",{}]", msgJson.dump());
   }
@@ -124,8 +170,11 @@ private:
   controller::PID steering_pid{ 0.225, 0.0004, 4.0, -1.0, 1.0 };
   controller::CoordinateAscentOptimizer steering_param_optimizer;
 
-  controller::PID speed_pid{ 1.0, 1.0, 1.0, 0.0, 20.0 };
+  controller::PID speed_pid{ 0.025, 0.0015, 0.002, -1.0, 1.0 };
   controller::CoordinateAscentOptimizer speed_param_optimizer;
+
+  static constexpr double MAX_SPEED = 40.0;
+  static constexpr double MAX_ANGLE = deg2rad(25.0);
 };
 
 int
@@ -162,9 +211,9 @@ main()
   }); // end h.onMessage
 
   h.onConnection(
-    [&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) { std::cout << "Connected!!!" << std::endl; });
+    [](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) { std::cout << "Connected!!!" << std::endl; });
 
-  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, char* message, size_t length) {
+  h.onDisconnection([](uWS::WebSocket<uWS::SERVER> ws, int code, char* message, size_t length) {
     ws.close();
     std::cout << "Disconnected" << std::endl;
   });

@@ -8,6 +8,7 @@
 #include <limits>
 #include <locale>
 #include <numeric>
+#include <unordered_map>
 #include <vector>
 
 namespace controller {
@@ -23,30 +24,38 @@ public:
   /**
    * @brief      This class describes a optimizer state.
    */
-  enum class State : uint32_t
+  enum class State : uint8_t
   {
-    kInitialized = 0,
-    kIncreased = 1,
-    kDecreased = 2
+    kInitialized,
+    kIncreased,
+    kDecreased,
   };
 
-  CoordinateAscentOptimizer(double increase_scale = 1.1, double decrease_scale = 0.9)
-    : _increase_scale(increase_scale)
+  CoordinateAscentOptimizer(const Parameters param_deltas = { 1.0, 1.0, 1.0 },
+                            double increase_scale = 1.1,
+                            double decrease_scale = 0.9)
+    : _param_deltas(param_deltas)
+    , _min_error(std::numeric_limits<double>::infinity())
+    , _increase_scale(increase_scale)
     , _decrease_scale(decrease_scale)
-  {
-    std::fill(_param_deltas.begin(), _param_deltas.end(), 0.001);
-  }
+  {}
 
   /**
    * @brief      Collect new errors into optimizer
    *
    * @param[in]  error  The error
    */
-  inline void Collect(double error) { _errors.push_back(error * error); }
+  inline void Collect(double error) { _total_error += (error * error); }
+
+  inline void ResetCounter()
+  {
+    _counter = 0;
+    _total_error = 0.0;
+  }
 
   inline bool NeedOptimization() const
   {
-    return std::accumulate(_param_deltas.begin(), _param_deltas.end(), 0.0) > 1e-6;
+    return std::accumulate(_param_deltas.begin(), _param_deltas.end(), 0.0) > 1e-8;
   }
 
   /**
@@ -54,80 +63,16 @@ public:
    *
    * @param[in]  parameters  The parameters
    */
-  Parameters Optimize(const Parameters& parameters)
-  {
-    Parameters optimized = parameters;
-    double latest_error = _errors[_errors.size() - 1];
-    switch (_state) {
-      case State::kInitialized:
-        // Increase the parameters in the given dimension
-        _min_error = latest_error;
-        optimized[_current_dim] += _param_deltas[_current_dim];
-        _state = State::kIncreased;
-        break;
-      case State::kIncreased:
-        // kIncreased parameters in initialization step.
-        // Check the error of increased parameters to decide what to do next
-        if (latest_error < _min_error) {
-          // Update latest error
-          _min_error = latest_error;
-          // Increase the parameter delta
-          _ScaleDelta(_param_deltas[_current_dim], _increase_scale);
-          // Succeeded in current dimension, rotate to next dimension.
-          _SetNextDim();
-          // The current parameter increment succeeded, increase the next dim
-          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
-          // Keep increase state for the next parameter
-          _state = State::kIncreased;
-        } else {
-          // The previous increment of parameter failed, move to the opposite direction
-          _ModifyParam(optimized[_current_dim], -2 * _param_deltas[_current_dim]);
-          // Clamp the parameter to be bigger than 0
-          if (optimized[_current_dim] < 0.0) {
-            optimized[_current_dim] = 0.0;
-            // Because this parameter is set to 0.0, the effect of the error term will be eliminated from the total
-            // error, check next sim.
-            _SetNextDim();
-          }
-          _state = State::kDecreased;
-        }
-        break;
-      case State::kDecreased:
-        // kDecreased parameters in the increased step, because it the error check failed.
-        // Check the error of decreased parameters to decide what to do next,
-        if (latest_error < _min_error) {
-          // Update latest error
-          _min_error = latest_error;
-          // Increase the parameter delta a bit since it succeeded, we can be a bit more aggressive.
-          _ScaleDelta(_param_deltas[_current_dim], _increase_scale);
-          // Succeeded in current dimension, rotate to next dimension.
-          _SetNextDim();
-          // The current parameter increment succeeded, increase the next dim
-          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
-          // Keep increase state for the next parameter.
-          _state = State::kIncreased;
-        } else {
-          // Decrement of the current parameter doesn't work, restore the original parameter value.
-          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
-          // Decrease the parameter delta a bit since it failed, we need to be a bit more conservative.
-          _ScaleDelta(_param_deltas[_current_dim], _decrease_scale);
-          // Succeeded in current dimension, rotate to next dimension.
-          _SetNextDim();
-          // The current parameter increment succeeded, increase the next dim.
-          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
-          // Keep increase state for the next parameter.
-          _state = State::kIncreased;
-        }
-        break;
-    }
-    return optimized;
-  }
+  Parameters Optimize(const Parameters& parameters);
+
+  double GetMinError() const { return _min_error; }
+  double GetTotalError() const { return _total_error; }
 
 private:
   /**
    * @brief      Sets the next dimension for parameter tweaking.
    */
-  inline void _SetNextDim() { _current_dim = (_current_dim + 1) % 3; }
+  inline void _SetNextParam() { _current_dim = (_current_dim + 1) % 3; }
 
   /**
    * @brief      Scale the parameter delta given the tweak succeeded or not
@@ -145,7 +90,9 @@ private:
    */
   static inline void _ModifyParam(double& param, double delta) { param += delta; }
 
-  std::vector<double> _errors;                                 ///< Collected error records
+  static const int MAX_RECORDS = 10;
+  int _counter = 0;
+  double _total_error = 0.0;                                   ///< Sum of all collected errors
   Parameters _param_deltas;                                    ///< Parameter deltas to be tuned
   uint32_t _current_dim = 0;                                   ///< Current parameter dimension to be checked
   double _min_error = std::numeric_limits<double>::infinity(); ///< Current minimal error
