@@ -12,12 +12,11 @@
 
 namespace controller {
 
+using Parameters = std::array<double, 3>;
+
 /**
  * @brief      This class describes a coordinate ascent optimizer.
- *
- * @tparam     NumParams  Number of parameters, in this project is always 3.
  */
-template<uint32_t NumParams = 3>
 class CoordinateAscentOptimizer
 {
 public:
@@ -55,9 +54,9 @@ public:
    *
    * @param[in]  parameters  The parameters
    */
-  std::array<double, NumParams> Optimize(const std::array<double, NumParams>& parameters)
+  Parameters Optimize(const Parameters& parameters)
   {
-    std::array<double, NumParams> optimized = parameters;
+    Parameters optimized = parameters;
     double latest_error = _errors[_errors.size() - 1];
     switch (_state) {
       case State::kInitialized:
@@ -128,7 +127,7 @@ private:
   /**
    * @brief      Sets the next dimension for parameter tweaking.
    */
-  inline void _SetNextDim() { _current_dim = (_current_dim + 1) % NumParams; }
+  inline void _SetNextDim() { _current_dim = (_current_dim + 1) % 3; }
 
   /**
    * @brief      Scale the parameter delta given the tweak succeeded or not
@@ -147,7 +146,7 @@ private:
   static inline void _ModifyParam(double& param, double delta) { param += delta; }
 
   std::vector<double> _errors;                                 ///< Collected error records
-  std::array<double, NumParams> _param_deltas;                 ///< Parameter deltas to be tuned
+  Parameters _param_deltas;                                    ///< Parameter deltas to be tuned
   uint32_t _current_dim = 0;                                   ///< Current parameter dimension to be checked
   double _min_error = std::numeric_limits<double>::infinity(); ///< Current minimal error
   double _increase_scale;                                      ///< Increase scale when adding delta succeeded
@@ -156,7 +155,7 @@ private:
 };
 
 /**
- * @brief      Controller mode to toggling different components in the controleller
+ * @brief      Controller mode to toggling different components in the controller
  */
 enum ControllerMode : uint8_t
 {
@@ -189,9 +188,9 @@ public:
   virtual ~PID() {}
 
   void Init(double Kp, double Ki, double Kd);
-  void Init(const std::array<double, 3>& parameters) { _params = parameters; }
+  void Init(const Parameters& parameters) { _params = parameters; }
 
-  const std::array<double, 3>& GetParameters() const { return _params; }
+  const Parameters& GetParameters() const { return _params; }
 
   void SetMode(uint8_t mode) { _mode = mode; }
 
@@ -211,8 +210,8 @@ public:
 
 private:
   uint8_t _mode = ControllerMode::kPIDMode;                      ///< Control mode
-  std::array<double, 3> _errors = { 0.0, 0.0, 0.0 };             ///< Errors for PID components
-  std::array<double, 3> _params = { 0.225, 0.0004, 4.0 };        ///< Parameters for PID components
+  Parameters _errors = { 0.0, 0.0, 0.0 };                        ///< Errors for PID components
+  Parameters _params = { 0.225, 0.0004, 4.0 };                   ///< Parameters for PID components
   double _prev_error = std::numeric_limits<double>::quiet_NaN(); ///< Cached previous error for D component
   double _min = std::numeric_limits<double>::min();              ///< The minimal value of output signal
   double _max = std::numeric_limits<double>::max();              ///< The maximum value of output signal

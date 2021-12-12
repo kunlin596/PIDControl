@@ -1,5 +1,5 @@
-#include "pid_controller.h"
 #include "json.hpp"
+#include "pid_controller.h"
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
@@ -122,10 +122,10 @@ public:
 
 private:
   controller::PID steering_pid{ 0.225, 0.0004, 4.0, -1.0, 1.0 };
-  controller::CoordinateAscentOptimizer<3> steering_param_optimizer;
+  controller::CoordinateAscentOptimizer steering_param_optimizer;
 
   controller::PID speed_pid{ 1.0, 1.0, 1.0, 0.0, 20.0 };
-  controller::CoordinateAscentOptimizer<3> speed_param_optimizer;
+  controller::CoordinateAscentOptimizer speed_param_optimizer;
 };
 
 int
