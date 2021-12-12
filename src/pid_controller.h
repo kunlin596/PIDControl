@@ -35,7 +35,7 @@ public:
     : _increase_scale(increase_scale)
     , _decrease_scale(decrease_scale)
   {
-    std::fill(_parame_deltas.begin(), _parame_deltas.end(), 0.001);
+    std::fill(_param_deltas.begin(), _param_deltas.end(), 0.001);
   }
 
   /**
@@ -47,7 +47,7 @@ public:
 
   inline bool NeedOptimization() const
   {
-    return std::accumulate(_parame_deltas.begin(), _parame_deltas.end(), 0.0) > 1e-6;
+    return std::accumulate(_param_deltas.begin(), _param_deltas.end(), 0.0) > 1e-6;
   }
 
   /**
@@ -63,7 +63,7 @@ public:
       case State::Initialized:
         // Increase the parameters in the given dimension
         _min_error = latest_error;
-        optimized[_current_dim] += _parame_deltas[_current_dim];
+        optimized[_current_dim] += _param_deltas[_current_dim];
         _state = State::Increased;
         break;
       case State::Increased:
@@ -73,16 +73,16 @@ public:
           // Update latest error
           _min_error = latest_error;
           // Increase the parameter delta
-          _ScaleDelta(_parame_deltas[_current_dim], _increase_scale);
+          _ScaleDelta(_param_deltas[_current_dim], _increase_scale);
           // Succeeded in current dimension, rotate to next dimension.
           _SetNextDim();
           // The current parameter increment succeeded, increase the next dim
-          _ModifyParam(optimized[_current_dim], _parame_deltas[_current_dim]);
+          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Keep increase state for the next parameter
           _state = State::Increased;
         } else {
           // The previous increment of parameter failed, move to the opposite direction
-          _ModifyParam(optimized[_current_dim], -2 * _parame_deltas[_current_dim]);
+          _ModifyParam(optimized[_current_dim], -2 * _param_deltas[_current_dim]);
           // Clamp the parameter to be bigger than 0
           if (optimized[_current_dim] < 0.0) {
             optimized[_current_dim] = 0.0;
@@ -100,22 +100,22 @@ public:
           // Update latest error
           _min_error = latest_error;
           // Increase the parameter delta a bit since it succeeded, we can be a bit more aggressive.
-          _ScaleDelta(_parame_deltas[_current_dim], _increase_scale);
+          _ScaleDelta(_param_deltas[_current_dim], _increase_scale);
           // Succeeded in current dimension, rotate to next dimension.
           _SetNextDim();
           // The current parameter increment succeeded, increase the next dim
-          _ModifyParam(optimized[_current_dim], _parame_deltas[_current_dim]);
+          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Keep increase state for the next parameter.
           _state = State::Increased;
         } else {
           // Decrement of the current parameter doesn't work, restore the original parameter value.
-          _ModifyParam(optimized[_current_dim], _parame_deltas[_current_dim]);
+          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Decrease the parameter delta a bit since it failed, we need to be a bit more conservative.
-          _ScaleDelta(_parame_deltas[_current_dim], _decrease_scale);
+          _ScaleDelta(_param_deltas[_current_dim], _decrease_scale);
           // Succeeded in current dimension, rotate to next dimension.
           _SetNextDim();
           // The current parameter increment succeeded, increase the next dim.
-          _ModifyParam(optimized[_current_dim], _parame_deltas[_current_dim]);
+          _ModifyParam(optimized[_current_dim], _param_deltas[_current_dim]);
           // Keep increase state for the next parameter.
           _state = State::Increased;
         }
@@ -147,7 +147,7 @@ private:
   static inline void _ModifyParam(double& param, double delta) { param += delta; }
 
   std::vector<double> _errors;                                 ///< Collected error records
-  std::array<double, NumParams> _parame_deltas;                ///< Parameter deltas to be tuned
+  std::array<double, NumParams> _param_deltas;                 ///< Parameter deltas to be tuned
   uint32_t _current_dim = 0;                                   ///< Current parameter dimension to be checked
   double _min_error = std::numeric_limits<double>::infinity(); ///< Current minimal error
   double _increase_scale;                                      ///< Increase scale when adding delta succeeded
