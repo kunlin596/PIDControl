@@ -186,33 +186,85 @@ def optimize(x, y, tol=0.1, speed=1.0, n=100):
     return p
 
 
-def plot_robots(robots):
+def plot_robots(robots, label):
     poses = np.asarray([[robot.x, robot.y, robot.orientation] for robot in robots])
-    plt.plot(poses[:, 0], poses[:, 1], marker="o", alpha=0.5)
+    plt.plot(poses[:, 0], poses[:, 1], marker="o", markersize=1.0, alpha=0.5, label=label)
 
 
 if __name__ == "__main__":
     # run - does a single control run
     n = 100
     x = 0.0
-    y = 2.0
+    y = 10.0
     orientation = 0.0
     speed = 1.0
-    plt.figure(figsize=(8, 8))
-    plt.ioff()
-    plt.hlines(y=0.0, xmin=-10.0, xmax=100.0, color="r", label="Reference")
+    # plt.figure(figsize=(8, 8))
+    # plt.ioff()
+    # plt.hlines(y=0.0, xmin=-10.0, xmax=100.0, color="r", label="Reference")
 
     robot = make_robot(x=x, y=y, orientation=orientation)
 
     # Simulate perfect execution
-    for i in range(20):
-        print(i)
-        p = optimize(robot.x, robot.y, tol=0.1, speed=speed, n=n)
-        robots, error = run(deepcopy(robot), p, n=n, speed=speed)
-        plot_robots(robots)
-        robot = robots[1]
+    # for i in range(20):
+    #     print(i)
+    #     p = optimize(robot.x, robot.y, tol=0.1, speed=speed, n=n)
+    #     robots, error = run(deepcopy(robot), p, n=n, speed=speed)
+    #     plot_robots(robots)
+    #     robot = robots[1]
 
-    plt.axis("equal")
+    # plt.figure(figsize=(8, 8))
+    # plt.title("P Controller")
+    # plt.hlines(y=0.0, xmin=0.0, xmax=100.0, color="r", label="Reference")
+    # for kp in np.arange(0.5, 5.0, 0.5):
+    #     robot = make_robot(x=x, y=y, orientation=orientation)
+    #     robots, error = run(robot, params=[kp, 0.0, 0.0], speed=1, n=n)
+    #     plot_robots(robots, label=f"Kp={kp:4.2f}")
+    # plt.xlabel("X (m)")
+    # plt.ylabel("Y (m)")
+    # plt.legend()
+    # plt.axis("equal")
+
+    # plt.figure(figsize=(8, 8))
+    # plt.title("PD Controller")
+    # plt.hlines(y=0.0, xmin=0.0, xmax=100.0, color="r", label="Reference")
+    # kp = 0.2
+    # for kd in np.arange(0.5, 5.0, 0.5):
+    #     robot = make_robot(x=x, y=y, orientation=orientation)
+    #     robots, error = run(robot, params=[kp, 0.0, kd], speed=1, n=n)
+    #     plot_robots(robots, label=f"Kp={kp:4.2f}, Kd={kd:4.2f}")
+    # plt.xlabel("X (m)")
+    # plt.ylabel("Y (m)")
+    # plt.legend()
+    # plt.axis("equal")
+
+    # plt.figure(figsize=(8, 8))
+    # plt.title("PID Controller")
+    # plt.hlines(y=0.0, xmin=0.0, xmax=100.0, color="r", label="Reference")
+    # kp = 0.2
+    # kd = 4.0
+    # for ki in np.arange(0.0001, 5.0, 0.5):
+    #     robot = make_robot(x=x, y=y, orientation=orientation)
+    #     robots, error = run(robot, params=[kp, ki, kd], speed=1, n=n)
+    #     plot_robots(robots, label=f"Kp={kp:4.2f}, Ki={ki:4.2f}, Kd={kd:4.2f}")
+    # plt.xlabel("X (m)")
+    # plt.ylabel("Y (m)")
+    # plt.legend()
+    # plt.axis("equal")
+
+    # plt.figure(figsize=(8, 8))
+    # plt.title("PID Controller")
+    # plt.hlines(y=0.0, xmin=0.0, xmax=100.0, color="r", label="Reference")
+    # kp = 0.2
+    # kd = 4.0
+    # for ki in np.linspace(0.0001, 0.001, 10):
+    #     robot = make_robot(x=x, y=y, orientation=orientation)
+    #     robots, error = run(robot, params=[kp, ki, kd], speed=1, n=n)
+    #     plot_robots(robots, label=f"Kp={kp:4.2f}, Ki={ki:7.5f}, Kd={kd:4.2f}")
+    # plt.xlabel("X (m)")
+    # plt.ylabel("Y (m)")
+    # plt.legend()
+    # plt.axis("equal")
+
     plt.ion()
     plt.show()
 
