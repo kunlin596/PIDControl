@@ -28,6 +28,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 find_package(fmt REQUIRED)
+if (${fmt_FOUND})
+  message(STATUS "Found fmt")
+endif()
 
 add_executable(pid ${sources})
 

@@ -18,6 +18,11 @@ This project implements a PID Controller that can be used to drive a vehicle in 
   ```shell
   apt-get install libfmt-dev
   ```
+  ```shell
+  git clone https://github.com/fmtlib/fmt.git
+  cd fmt && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  cd build && make install
+  ```
 * [Udacity CarND Simulator](https://github.com/udacity/self-driving-car-sim/releases)
   * Select PID Control tab in term 2 simulator.
 
